@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Publication_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3">
+  <mRID>fixture-prices-15</mRID>
+  <type>A44</type>
+  <TimeSeries>
+    <mRID>1</mRID>
+    <in_Domain.mRID codingScheme="A01">10Y1001A1001A82H</in_Domain.mRID>
+    <out_Domain.mRID codingScheme="A01">10Y1001A1001A82H</out_Domain.mRID>
+    <curveType>A01</curveType>
+    <Period>
+      <timeInterval><start>2025-10-01T22:00Z</start><end>2025-10-02T00:00Z</end></timeInterval>
+      <resolution>PT15M</resolution>
+      <Point><position>1</position><price.amount>80</price.amount></Point>
+      <Point><position>2</position><price.amount>84</price.amount></Point>
+      <Point><position>3</position><price.amount>88</price.amount></Point>
+      <Point><position>4</position><price.amount>92</price.amount></Point>
+      <Point><position>5</position><price.amount>-10</price.amount></Point>
+      <Point><position>6</position><price.amount>-6</price.amount></Point>
+      <Point><position>7</position><price.amount>-2</price.amount></Point>
+      <Point><position>8</position><price.amount>2</price.amount></Point>
+    </Period>
+  </TimeSeries>
+  <TimeSeries>
+    <mRID>2</mRID>
+    <in_Domain.mRID codingScheme="A01">10Y1001A1001A82H</in_Domain.mRID>
+    <out_Domain.mRID codingScheme="A01">10Y1001A1001A82H</out_Domain.mRID>
+    <curveType>A01</curveType>
+    <Period>
+      <timeInterval><start>2025-10-01T22:00Z</start><end>2025-10-02T00:00Z</end></timeInterval>
+      <resolution>PT60M</resolution>
+      <Point><position>1</position><price.amount>999</price.amount></Point>
+      <Point><position>2</position><price.amount>999</price.amount></Point>
+    </Period>
+  </TimeSeries>
+</Publication_MarketDocument>

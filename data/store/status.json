@@ -1,0 +1,23 @@
+{
+  "crude/cot_wti": {
+    "last_attempt_utc": "2026-10-04T17:38:32Z",
+    "last_success_utc": "2026-10-04T17:38:32Z",
+    "latest_observation": "2026-09-29",
+    "message": "",
+    "ok": true,
+    "rows": 613,
+    "source": "CFTC Disaggregated COT"
+  },
+  "crude/eia_daily": {
+    "last_attempt_utc": "2026-10-04T17:33:23Z",
+    "message": "Partial backfill with the public, heavily rate-limited EIA DEMO_KEY. Add the EIA_API_KEY secret and run the 'Daily data refresh' workflow with 'Re-download full history' to complete.",
+    "ok": false,
+    "source": "EIA API v2"
+  },
+  "crude/eia_weekly": {
+    "last_attempt_utc": "2026-10-04T17:38:30Z",
+    "message": "Partial backfill with the public, heavily rate-limited EIA DEMO_KEY. Add the EIA_API_KEY secret and run the 'Daily data refresh' workflow with 'Re-download full history' to complete.",
+    "ok": false,
+    "source": "EIA API v2"
+  }
+}

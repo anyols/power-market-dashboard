@@ -1,0 +1,5 @@
+# Normalise line endings so Windows checkouts and the Linux GitHub Action produce identical files
+* text=auto
+*.csv text eol=lf
+*.json text eol=lf
+*.png binary

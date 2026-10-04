@@ -1,0 +1,16 @@
+# Core data stack
+pandas>=2.1
+numpy>=1.26
+requests>=2.31
+python-dotenv>=1.0
+pydantic>=2.6
+
+# Dashboard & charts
+streamlit>=1.40
+plotly>=5.20
+
+# Indicative futures prices (unofficial; fetched live by the app, never stored)
+yfinance>=0.2.50
+
+# Testing
+pytest>=8.0

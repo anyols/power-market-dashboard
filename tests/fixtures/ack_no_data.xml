@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Acknowledgement_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-1:acknowledgementdocument:7:0">
+  <mRID>fixture-ack</mRID>
+  <createdDateTime>2024-01-02T10:00:00Z</createdDateTime>
+  <Reason>
+    <code>999</code>
+    <text>No matching data found for Data item ENERGY_PRICES [12.1.D] (10Y1001A1001A82H, 10Y1001A1001A82H) and interval 2030-01-01T00:00:00.000Z/2030-01-02T00:00:00.000Z.</text>
+  </Reason>
+</Acknowledgement_MarketDocument>

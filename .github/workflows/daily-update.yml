@@ -1,0 +1,67 @@
+name: Daily data refresh
+
+on:
+  schedule:
+    # 05:15 UTC = 06:15 CET / 07:15 CEST: overnight ENTSO-E actuals are in, before the European open.
+    - cron: "15 5 * * *"
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Re-download full history"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Restore ENTSO-E response cache
+        uses: actions/cache@v4
+        with:
+          path: data/raw/entsoe_cache.sqlite
+          key: entsoe-cache-${{ github.run_id }}
+          restore-keys: entsoe-cache-
+
+      - name: Fetch new data
+        id: update
+        continue-on-error: true
+        env:
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          ENTSOE_API_TOKEN: ${{ secrets.ENTSOE_API_TOKEN }}
+        run: python scripts/daily_update.py ${{ inputs.full && '--full' || '' }}
+
+      - name: Validate refreshed data before committing
+        run: python -m pytest tests/test_store_integrity.py -q
+
+      - name: Commit refreshed data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add data/store
+          if git diff --cached --quiet; then echo "No data changes"; exit 0; fi
+          git commit -m "data: daily refresh $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: Flag partial failures
+        if: steps.update.outcome == 'failure'
+        run: |
+          echo "::warning::At least one source failed (see 'Fetch new data'). Successful sources were committed."
+          exit 1
