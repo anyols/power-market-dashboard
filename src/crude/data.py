@@ -7,6 +7,7 @@ crude page runs on the clearly-labelled synthetic sample.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -60,13 +61,16 @@ def _usable(daily: pd.DataFrame | None, weekly: pd.DataFrame | None) -> bool:
             and weekly.get("crude_stocks", pd.Series(dtype=float)).notna().sum() > 52 * 6)
 
 
-def load_crude_data(store_root: Path | None = None, sample_root: Path | None = None) -> CrudeData:
+def load_crude_data(store_root: Path | None = None, sample_root: Path | None = None,
+                    source: str | None = None) -> CrudeData:
+    """`source`: "auto" (store if usable, else sample) or "sample". Defaults to the CRUDE_SOURCE env var."""
+    source = (source or os.getenv("CRUDE_SOURCE", "auto")).strip().lower()
     store_root = store_root or STORE_DIR
     sample_root = sample_root or SAMPLE_DIR
     daily, weekly, cot = (read_table(t, store_root) for t in (T_DAILY, T_WEEKLY, T_COT))
     status = read_status(store_root / "status.json")
     notices: list[str] = []
-    if _usable(daily, weekly):
+    if source != "sample" and _usable(daily, weekly):
         source = "store"
         if cot is None or cot.empty:
             notices.append("CFTC positioning data not in the store yet; positioning views are disabled.")

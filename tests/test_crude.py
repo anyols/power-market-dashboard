@@ -32,9 +32,7 @@ KNOWN_EXPIRIES = {
 
 @pytest.fixture(scope="module")
 def sample():
-    from src.config import SAMPLE_DIR
-
-    data = load_crude_data(store_root=SAMPLE_DIR / "__no_store__")  # force the deterministic synthetic sample
+    data = load_crude_data(source="sample")  # deterministic synthetic sample, whatever is in data/store
     assert data.is_sample
     return data
 

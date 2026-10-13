@@ -34,6 +34,14 @@ from src.crude.config import EIA_DAILY, EIA_WEEKLY, HISTORY_START, T_COT, T_DAIL
 from src.data_store import merge_update, read_table, update_status, write_table  # noqa: E402
 from src.eia_client import EiaClient  # noqa: E402
 
+
+def report_error(msg: str) -> None:
+    """Log to stderr and, inside GitHub Actions, also emit a warning annotation."""
+    print(f"ERROR {msg}", file=sys.stderr)
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        print(f"::warning title=daily_update::{msg[:900]}")
+
+
 POWER_HISTORY_DAYS = 400
 POWER_OVERLAP_DAYS = 7
 EIA_OVERLAP = {T_DAILY: pd.Timedelta(days=60), T_WEEKLY: pd.Timedelta(weeks=26)}
@@ -56,8 +64,8 @@ def update_eia(full: bool) -> bool:
     key = os.getenv("EIA_API_KEY", "").strip()
     if not key:
         # The public DEMO_KEY allows ~10 requests per several hours - not enough for one refresh.
-        print("[EIA] EIA_API_KEY not set - skipping EIA. Register for a free key at "
-              "https://www.eia.gov/opendata/register.php")
+        report_error("[EIA] EIA_API_KEY not set - skipping EIA. Register for a free key at "
+                     "https://www.eia.gov/opendata/register.php")
         for table in (T_DAILY, T_WEEKLY):
             update_status(table, ok=False, source="EIA API v2", message="skipped: EIA_API_KEY not configured")
         return False
@@ -92,7 +100,7 @@ def update_eia(full: bool) -> bool:
                       latest=str(latest.date()) if latest is not None else None,
                       rows=len(merged) if merged is not None else 0)
         for e in errors:
-            print(f"[EIA] ERROR {e}", file=sys.stderr)
+            report_error(f"[EIA] {table}: {e}")
     return all_ok
 
 
@@ -107,7 +115,7 @@ def update_cot(full: bool) -> bool:
         update_status(T_COT, ok=True, source="CFTC Disaggregated COT", latest=str(latest.date()), rows=len(merged))
         return True
     except Exception as exc:
-        print(f"[CFTC] ERROR {exc}", file=sys.stderr)
+        report_error(f"[CFTC] {exc}")
         update_status(T_COT, ok=False, source="CFTC Disaggregated COT", message=str(exc)[:500])
         return False
 
@@ -148,7 +156,7 @@ def update_power(full: bool) -> bool:
             update_status(table, ok=True, source="ENTSO-E Transparency Platform", latest=str(latest), rows=len(merged))
         except Exception as exc:
             all_ok = False
-            print(f"[ENTSO-E] ERROR {zone}: {exc}", file=sys.stderr)
+            report_error(f"[ENTSO-E] {zone}: {exc}")
             update_status(table, ok=False, source="ENTSO-E Transparency Platform", message=str(exc)[:500])
 
     # Cross-border physical flows for borders between stored zones (one column per direction)
@@ -169,7 +177,7 @@ def update_power(full: bool) -> bool:
                           latest=str(merged.index.max()), rows=len(merged))
     except Exception as exc:
         all_ok = False
-        print(f"[ENTSO-E] ERROR flows: {exc}", file=sys.stderr)
+        report_error(f"[ENTSO-E] flows: {exc}")
         update_status("power/flows", ok=False, source="ENTSO-E Transparency Platform", message=str(exc)[:500])
     return all_ok
 
@@ -187,8 +195,9 @@ def main() -> int:
     for name, fn in steps.items():
         try:
             results[name] = fn(args.full)
-        except Exception:  # never let one source kill the run
+        except Exception as exc:  # never let one source kill the run
             traceback.print_exc()
+            report_error(f"[{name}] unexpected failure: {exc!r}")
             results[name] = False
     print("Summary:", ", ".join(f"{k}={'ok' if v else 'FAILED'}" for k, v in results.items()))
     return 0 if all(results.values()) else 1

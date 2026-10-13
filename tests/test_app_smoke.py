@@ -47,6 +47,7 @@ CRUDE_PAGES = ["crude_overview", "crude_inventories", "crude_curve", "crude_sign
 @pytest.mark.parametrize("page", CRUDE_PAGES)
 def test_crude_page_renders_without_exceptions(page, monkeypatch):
     monkeypatch.setenv("DATA_SOURCE", "sample")
+    monkeypatch.setenv("CRUDE_SOURCE", "sample")  # deterministic and offline, whatever is in data/store
     at = AppTest.from_function(_crude_page_script, args=(page,), default_timeout=120)
     at.run()
     assert not at.exception, [e.message for e in at.exception]
@@ -70,6 +71,7 @@ def test_other_zones_render(zone, monkeypatch):
 
 def test_full_app_boots(monkeypatch):
     monkeypatch.setenv("DATA_SOURCE", "sample")
+    monkeypatch.setenv("CRUDE_SOURCE", "sample")
     at = AppTest.from_file(str(Path(__file__).resolve().parent.parent / "app.py"), default_timeout=120)
     at.run()
     assert not at.exception, [e.message for e in at.exception]
