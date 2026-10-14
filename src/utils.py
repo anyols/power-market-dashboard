@@ -131,20 +131,9 @@ def fmt_pct(x: float, decimals: int = 0, signed: bool = False) -> str:
     return f"{sign}{abs(x) * 100:.{decimals}f}%"
 
 
-def fmt_signed(x: float, decimals: int = 1, unit: str = "") -> str:
-    if x is None or pd.isna(x):
-        return "n/a"
-    sign = MINUS if x < 0 else "+"
-    return f"{sign}{abs(x):,.{decimals}f}{unit}"
-
-
 def safe_div(a: float, b: float) -> float:
     if b is None or a is None or pd.isna(a) or pd.isna(b) or b == 0:
         return np.nan
     return a / b
 
 
-def require_columns(df: pd.DataFrame, columns: Iterable[str]) -> None:
-    missing = [c for c in columns if c not in df.columns]
-    if missing:
-        raise KeyError(f"Missing required columns: {missing}")

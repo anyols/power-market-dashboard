@@ -1,351 +1,143 @@
-# European Power & Crude Oil Trading Dashboard
+# Spot & Spread
 
-A Python/Streamlit analytics platform that turns energy-market fundamentals into trading-style reasoning.
+My commodities dashboard. Power, oil, gas, metals and ags in one place, plus a few questions I wanted to dig into
+properly - like whether Hershey actually trades with cocoa (it mostly doesn't, see below).
 
-- **European power.** Day-ahead prices, load, wind, solar, residual demand, forecast errors, spikes,
-  volatility and cross-border flows.
-- **Crude oil (WTI/Brent).** Prices, inventories against seasonal norms, Cushing, the futures curve,
-  speculative positioning and the Brent–WTI spread.
+Built with Python, pandas and Streamlit. Data updates itself every morning through a GitHub Action.
 
-Each market has a transparent signal lab with an honest backtest and a rule-based market brief. A
-scheduled GitHub Action refreshes the data every morning.
+![returns board](docs/img/board_returns.png)
 
-> **This project is designed to connect market fundamentals to trading-style decision-making.
-> It is not a black-box price prediction model.**
+## What's in it
 
-![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![Streamlit](https://img.shields.io/badge/streamlit-dashboard-red) ![Tests](https://img.shields.io/badge/tests-pytest-green) ![Data](https://img.shields.io/badge/data-refreshed%20daily-orange)
+- **Board** - every commodity I follow on one screen: price, daily move, a 3-month sparkline, returns over
+  1W/1M/YTD/1Y and where each one sits in its 52-week range.
+- **Ratios & spreads** - gold/silver, gold/oil, copper/gold, oil/gas, the 3-2-1 crack, Brent-WTI, soy/corn,
+  TTF vs Henry Hub, platinum/gold. Each against its history since 2010, plus a build-your-own ratio.
+- **Stocks vs commodities** - pairs each commodity with the listed company that depends on it most (cocoa/Hershey,
+  coffee/Starbucks, copper/Freeport, gas/EQT, TTF/RWE, gold/Newmont...). Rolling correlation and beta, who moves
+  first, and a "decoupling" measure for when the stock drifts away from what its commodity implies.
+- **Seasonality** - month-by-month return heatmaps and the average path through the year vs this year.
+- **Power** - European day-ahead prices next to load, wind and solar (ENTSO-E). Residual load vs price is basically
+  the merit order drawn from data. Also spikes, forecast misses and interconnector flows.
+- **Oil** - WTI/Brent, the live futures curve, weekly EIA inventories against the last five years, Cushing, and
+  hedge fund positioning from the CFTC.
+- **Notes** - a weekly oil note and a daily power note, written from the data with plain if/else rules.
+- **Backtests** - two rule-based signals (oil and power), tested without any look-ahead.
 
-> ⚠️ **Data notice.** Until the morning job has run with API keys, the app uses **synthetic sample
-> datasets** (`data/sample/`). They copy the structure and broad behaviour of the real sources, but they are
-> **not real market data**, and every page says so.
+## Some things I found
 
----
+All as of October 2026.
 
-## 1. Why this matters for trading
+**Cocoa went up ~350% from the start of 2023 to the end of 2024 (record ~$12,500/t in December 2024). Hershey fell
+25% over the same period, but week to week the two are basically uncorrelated (about -0.1 over five years).**
+The damage showed up through quarterly earnings and guidance, not in day-to-day trading.
 
-Desks trading fundamental energy markets start the day with the same questions.
+![cocoa vs hershey](docs/img/cocoa_hershey.png)
 
-**Power**
-- How tight is the system tomorrow? Where does residual demand land on the merit order?
-- What did the forecasts miss, and how will that be re-traded intraday and in imbalance?
-- Where are the spike and negative-price risks? Are interconnectors congested?
+**Gold miners are levered gold.** Over the last five years Newmont's beta to gold is about 1.6 and the GDX miners
+ETF about 1.8, with correlations of 0.7-0.8. Exxon vs WTI is a much looser 0.6 correlation and a 0.4 beta.
 
-**Crude**
-- Did this week's EIA report draw more or less than normal for the season?
-- How close is Cushing to tank bottoms?
-- Is the curve signalling scarcity (backwardation) or surplus (contango)?
-- Are speculators already crowded on one side?
+**RWE has zero weekly correlation with TTF gas** over five years. My guess is that's hedging: utilities sell most of
+their output forward years ahead, so spot gas moves don't hit them the same week.
 
-The dashboard answers these with transparent, reproducible analytics. Every number can be traced
-back to a source, and every rule is written down.
+**The copper/gold ratio used to track US 10-year yields and doesn't anymore.** The correlation of the two levels
+went from +0.65 (2012-2021) to -0.67 (2022 onwards). Yields went up, and gold went up even faster.
 
-## 2. Market intuition
+![copper gold](docs/img/copper_gold.png)
 
-### Power
+**Nobody leads.** For nearly every stock/commodity pair the lead-lag correlation peaks at zero weeks, and where it
+doesn't (cocoa/Hershey, TTF/RWE) the correlations are noise anyway. Whatever moves the commodity is in the stock
+price the same week.
 
-**Residual demand.** Residual demand = load − wind − solar. Renewables have near-zero marginal
-cost, so the residual must be covered by dispatchable plants or imports.
-- High residual demand pushes pricier units onto the margin: a tighter system and bullish pressure.
-- Low or negative residual demand is where negative prices come from.
+**Gasoline's seasonality is partly a contract thing.** On the continuous RBOB series, March was up in 9 of the
+last 10 years and September down in 9 of 10. But that's also when the front month switches between winter- and
+summer-grade gasoline, which trade at different prices. Natural gas is similar: August up in 9 of 10 years,
+December down in 8 of 10.
 
-**Renewables.** Wind sets multi-day regimes. Solar shapes the day: it depresses midday prices
-(*cannibalisation*) and creates a steep evening ramp, where many spikes sit.
+**My weekly oil signal doesn't work.** It votes on four things every Thursday: inventory surprise vs the seasonal
+norm, Cushing tightness, curve shape and hedge fund crowding. From 2010 to 2024 it was right 51.7% of the time -
+when 52.6% of weeks went up anyway - and lost a little after costs. The inventory surprise alone was right
+exactly 50% of the time: the number is public at 10:30 ET on Wednesday and priced within minutes. The curve vote
+made about 10 cents a barrel a week. Not nothing, not a strategy either. I kept it in because a backtest that
+says "no" is more useful than one that's been tuned until it says "yes".
 
-**Forecast errors.** The day-ahead auction clears on forecasts. Misses are re-balanced intraday or
-through balancing energy. A system shorter than forecast supports intraday and imbalance prices.
+![crude stocks](docs/img/crude_stocks.png)
 
-**Spikes and flows.**
-- Spikes cluster where high demand meets low renewables. Because prices can go negative,
-  volatility is measured in €/MWh, not % returns.
-- Market coupling moves power from cheap to expensive zones until prices converge or a line
-  congests. Imports relieve tightness; exports add to it.
+## How it works
 
-### Crude oil
-
-**Inventories.** Stocks are the market's shock absorber. Below-normal stocks leave less buffer, so
-prompt barrels command a premium.
-- Seasonality is large: crude builds in spring and draws in summer. Every level and weekly change
-  is therefore compared with the *same week* in the previous five years.
-
-**Cushing.** Cushing, Oklahoma is the delivery point of the NYMEX WTI contract.
-- Low Cushing stocks tighten the front of the WTI curve directly.
-- Near tank bottoms (~20 mb), squeezes become possible.
-
-**The curve (theory of storage).**
-- Scarce inventories give physical oil a *convenience yield*, so the curve backwardates (front
-  above deferred) and holders of the front contract earn roll yield.
-- Surplus inventories put the curve in contango, which pays for storage.
-
-**Positioning.** When managed money is already very long, new buyers are scarce and risk skews
-towards liquidation (and vice versa). Extremes are judged against a trailing three-year
-distribution.
-
-**Brent–WTI.** The spread between the seaborne and the inland US benchmark reflects export
-economics, pipeline logistics and the regional supply–demand balance.
-
-## 3. Features
-
-| Section | Page | What it shows |
+| Data | Source | How it gets here |
 |---|---|---|
-| Power | **Market Overview** | Aligned panels of price, load, wind, solar and residual demand (actual vs forecast), daily ranges, volatility, spike and negative hours, and a rule-based trader read-out |
-| Power | **Price Drivers** | Driver scatters, quadratic merit-order fit (R², €/MWh per GW), empirical supply curve, correlation matrix and rolling correlation |
-| Power | **Forecast Surprises** | Error time series and distributions, hour × weekday heatmaps, z-scores, top 20 surprise hours with auto-comments |
-| Power | **Spikes & Volatility** | Configurable spike definition, timing, fundamentals in spike vs normal vs negative hours, natural-language explanation |
-| Power | **Cross-Border Flows** | Net position, flows by border, spreads, flow vs spread, convergence and congestion statistics |
-| Power | **Signal Lab / Daily Brief / Risk** | −3…+3 fundamental score with honest backtest, deterministic daily note, PnL/drawdown/exposure/stress tests |
-| Crude | **Crude Overview** | WTI and Brent (live indicative and official), Brent–WTI, current forward curve, KPIs, data-freshness table |
-| Crude | **Inventories & Balances** | 5-year seasonal bands for crude, Cushing, gasoline and distillate; refinery runs; demand; supply; latest report vs seasonal norms |
-| Crude | **Curve & Positioning** | Theory-of-storage scatter (Cushing vs M1–M2), time spreads, live curve, CFTC managed-money positioning and percentile |
-| Crude | **Crude Signal Lab** | Weekly four-vote score (inventory surprise, Cushing, curve carry, positioning), roll-adjusted backtest, current reading |
-| Crude | **Weekly Crude Brief** | Rule-based desk note on the latest EIA report, plus any historical week |
-| About | **Data Pipeline Status** | What the morning job refreshed, the latest observation per dataset, errors |
+| Commodity, stock and macro prices | Yahoo Finance | fetched live when you open the app (cached 1h, never stored) |
+| EU power prices, load, wind, solar, flows | ENTSO-E Transparency Platform | daily GitHub Action → `data/store/` |
+| US crude, Cushing, products, refinery runs | EIA API (weekly report) | daily GitHub Action → `data/store/` |
+| Hedge fund positioning | CFTC Commitments of Traders | daily GitHub Action → `data/store/` |
 
-**Engineering highlights**
+The Action (`.github/workflows/daily-update.yml`) runs `scripts/daily_update.py`. It only fetches what's new, checks
+the data for nonsense before committing (`tests/test_store_integrity.py`), and Streamlit Cloud redeploys on the
+commit. One API failing doesn't stop the others.
 
-- **Morning pipeline.** `scripts/daily_update.py` runs as a scheduled GitHub Action.
-  - It fetches incrementally, with an overlap window to pick up revisions, and merges into CSV
-    tables under `data/store/`.
-  - It validates the data with `tests/test_store_integrity.py` before committing.
-  - One failing source never blocks the others.
-- **API clients.** ENTSO-E (XML, SQLite cache, 15/60-min resolutions), EIA API v2
-  (newest-first paging, one request per series per day), CFTC Socrata, and Yahoo Finance.
-- **NYMEX CL contract calendar.** Implements the CME last-trade rule and is tested against
-  published 2024 expiries. It is used for **roll-adjusted** front-month returns, so contract rolls
-  never book fake PnL.
-- **Release-calendar-aware information sets.**
-  - EIA weekly data is used only from the Thursday after the week ends (released Wednesday).
-  - CFTC data is used only from Friday (positions as of Tuesday).
-  - Power signals use only what is known before the 12:00 CET day-ahead gate.
-  - Perturbation tests scramble everything not yet published and check that signals don't move.
-    Deliberately injected leaks were verified to fail these tests.
-- **Timezone-correct power pipeline.** It handles 23- and 25-hour DST days, matches the same hour
-  by local date, and validates against SDAC price limits.
+A couple of details I spent time getting right:
 
-## 4. Screenshots
+- **No look-ahead in the backtests.** EIA weekly data is only used from the Thursday after its Wednesday release,
+  CFTC data from the Friday it's published, and power signals only use what's known before the noon day-ahead
+  auction. The tests scramble every future data point and check the signals don't change. I broke this on purpose a
+  few times to make sure the tests catch it.
+- **Futures rolls.** Front-month series jump when one contract expires and the next takes over. For WTI I rebuild a
+  roll-adjusted series from the CME expiry rule (tested against the real 2024 expiry dates). The board and ratio
+  pages use Yahoo's continuous series as-is, which is fine for levels but not for backtesting.
+- **Power data is messy.** 15-minute day-ahead prices since October 2025, 23 and 25-hour days at the clock changes,
+  gaps in the TSO data. All of that is handled and reported, not hidden.
 
-> Placeholders. Run the app and save screenshots into `docs/screenshots/` with these names.
-
-| | |
-|---|---|
-| ![Power overview](docs/screenshots/overview.png) | ![Crude inventories](docs/screenshots/crude_inventories.png) |
-| *Power: Market Overview* | *Crude: Inventories vs 5-year range* |
-| ![Signal lab](docs/screenshots/signal_lab.png) | ![Crude brief](docs/screenshots/crude_brief.png) |
-| *Power: Signal Lab* | *Crude: Weekly Brief* |
-
-## 5. Installation
-
-Requires Python 3.11+.
+## Running it
 
 ```bash
-git clone <your-fork-url> power-market-dashboard
-cd power-market-dashboard
 python -m venv .venv
 ```
 
-Activate the environment:
-
 ```bash
-# Windows (PowerShell): .venv\Scripts\Activate.ps1
-# macOS / Linux:
-source .venv/bin/activate
+.venv/Scripts/pip install -r requirements.txt
 ```
 
 ```bash
-pip install -r requirements.txt
+.venv/Scripts/streamlit run app.py
 ```
 
-Tested with Python 3.11.9, pandas 3.0, numpy 2.4, Streamlit 1.65, Plotly 7.1, pydantic 2.13 and yfinance 1.7.
+(On Mac/Linux it's `.venv/bin/...`.)
 
-## 6. API keys
+It runs without any keys: prices come from Yahoo, and anything without real data yet falls back to synthetic sample
+data, which is labelled as such. For the real stored data, copy `.env.template` to `.env` and add an
+[EIA key](https://www.eia.gov/opendata/register.php) (free, instant) and/or an ENTSO-E token, then run
+`python scripts/daily_update.py`.
 
-| Key | Needed for | How to get it |
-|---|---|---|
-| `EIA_API_KEY` | Crude prices and weekly balances | Free, instant: [eia.gov/opendata/register.php](https://www.eia.gov/opendata/register.php) |
-| `ENTSOE_API_TOKEN` | Power data | Free: register on the [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/), then request REST API access. At the time of writing, you email `transparency@entsoe.eu` with the subject "Restful API access". Then generate a token in your account settings |
-| none | CFTC positioning, Yahoo prices | — |
+Tests: `pytest` (about 30 seconds, fully offline).
 
-For local use, copy `.env.template` to `.env` and fill in the keys:
-
-```bash
-cp .env.template .env
-```
-
-The public dashboard itself needs **no keys**: it reads the refreshed data committed to the repository.
-
-## 7. Running
-
-```bash
-streamlit run app.py
-```
-
-Refresh the data store by hand (does the same as the morning job):
-
-```bash
-python scripts/daily_update.py
-```
-
-Run the tests:
-
-```bash
-pytest
-```
-
-The synthetic samples are deterministic and can be regenerated at any time:
-
-```bash
-python scripts/generate_sample_data.py
-```
-
-```bash
-python scripts/generate_sample_crude.py
-```
-
-## 8. Automated morning refresh: GitHub Actions + Streamlit Cloud
+## Layout
 
 ```
- 05:15 UTC daily                     commits data/store/*.csv            redeploys on push
-┌──────────────────────┐   EIA     ┌──────────────────────────┐        ┌─────────────────────┐
-│ GitHub Action        │──CFTC───▶│ GitHub repo (main)        │──────▶│ Streamlit Community │
-│ daily-update.yml     │  ENTSO-E  │ data/store + status.json  │        │ Cloud: app.py       │
-└──────────────────────┘           └──────────────────────────┘        └─────────┬───────────┘
-                                                                                  │ live, cached 1 h
-                                                                        Yahoo Finance (never stored)
+app.py                  navigation
+src/markets.py          cross-commodity prices, ratios, pairs, seasonality
+src/crude/              EIA/CFTC oil analytics, contract calendar, weekly signal
+src/entsoe_client.py    ENTSO-E API client (XML, caching, 15-min data)
+src/signal_engine.py    power signal  ·  src/backtester.py  shared backtest
+src/views/              one file per page
+scripts/daily_update.py the morning refresh job
+data/store/             data committed by the job  ·  data/sample/  synthetic fallback data
+notes/watchlist.md      my own notes, shown on the board
 ```
 
-One-time setup:
+## Caveats
 
-1. **Push the project to GitHub.** Create an empty repository, then:
-   ```bash
-   git init -b main
-   ```
-   ```bash
-   git add . && git commit -m "Initial commit"
-   ```
-   ```bash
-   git remote add origin https://github.com/<you>/power-market-dashboard.git && git push -u origin main
-   ```
-2. **Add secrets.** In the repository, go to *Settings → Secrets and variables → Actions → New
-   repository secret* and add `EIA_API_KEY`, plus `ENTSOE_API_TOKEN` once you have it.
-3. **Allow the workflow to commit.** In *Settings → Actions → General → Workflow permissions*,
-   choose "Read and write permissions".
-4. **Backfill history.** In *Actions → Daily data refresh → Run workflow*, tick "Re-download full
-   history" for the first run. After that it runs every morning at 05:15 UTC on its own.
-5. **Deploy.** On [share.streamlit.io](https://share.streamlit.io), create an app from your repo:
-   branch `main`, main file `app.py`, Python 3.11. No secrets are needed. Every data commit
-   redeploys the app.
+- Yahoo's continuous futures are delayed and unofficial, and they jump at rolls (natural gas especially).
+- EIA stopped publishing NYMEX futures prices in April 2024, so the official WTI curve history ends there. The live
+  curve comes from Yahoo.
+- The power backtest's "entry price" is yesterday's auction price, which you can't actually trade at. Good for
+  learning, not for trading.
+- Not investment advice, obviously.
 
-Operational notes:
+## Ideas for next
 
-- **Keep-alive.** GitHub disables scheduled workflows in repositories with no activity for 60 days.
-  The daily data commits normally keep the repository active. If the schedule ever stops,
-  re-enable it in the Actions tab.
-- **Failure handling.** A run with a failed source is flagged red, but successful sources are
-  still committed.
-- **Status page.** The *Data Pipeline Status* page shows what happened on each run.
-- **CI.** `.github/workflows/ci.yml` runs ruff and the test suite on every push and pull request.
-
-## 9. Data sources and their limits
-
-| Source | Data | Rhythm | Notes |
-|---|---|---|---|
-| ENTSO-E | Power prices, load, wind/solar (actual and forecast), physical flows | Day-ahead prices ~13:00 CET for the next day | 15-minute day-ahead MTU since 1 Oct 2025 (averaged to hourly here) |
-| EIA API v2 | WTI/Brent spot; weekly stocks, runs, production, trade, demand | Weekly report Wed 10:30 ET; daily prices lag several days | Public domain |
-| EIA API v2 | NYMEX futures, contracts 1–4 | **Discontinued after 5 Apr 2024** | History only; used for the curve and the roll-adjusted backtest |
-| CFTC | Disaggregated COT, WTI-Physical (NYMEX 067651) | Fri 15:30 ET, positions as of Tuesday | Public |
-| Yahoo Finance | CL=F, BZ=F and individual CL contracts | Live | Unofficial and indicative; its terms restrict redistribution, so the app fetches it live and **never stores or commits it** |
-
-The project never mixes real and synthetic data on the same page. Each commodity switches to real
-data only when its core tables are in the store.
-
-## 10. Methodology
-
-### Power signal
-
-The decision for delivery day **D** is taken on **D-1 at ~11:00 CET**, before the 12:00 SDAC gate.
-- **Inputs.** Day-ahead forecasts for D, actuals up to D-2, and prices up to D-1.
-- **Target.** Price(D, h) − price(D-1, h). "Next-hour day-ahead change" is not a valid target,
-  because all 24 prices are set in one auction.
-- **Score.** Three votes: the residual-demand change z-score, the lagged load surprise and the
-  lagged renewable surprise.
-- **PnL.** A *proxy*: yesterday's price is not a tradeable entry level. A cost is charged on every MWh.
-
-### Crude signal (weekly)
-
-Decided every **Thursday at settlement**. Each input is used only after its official release:
-- EIA weekly data from Thursday;
-- CFTC data from Friday;
-- prices at D's settlement.
-
-| Vote | Input | Bullish when |
-|---|---|---|
-| Inventory surprise | Weekly crude-stock change minus the 5-year average change for that week, standardised | Bigger draw than normal |
-| Cushing tightness | Cushing stocks vs the 5-year average, standardised | Unusually low |
-| Curve (carry) | Front minus second-month futures | Backwardation |
-| Positioning (contrarian) | Managed-money net length percentile, 3 years | Crowded short (bearish when crowded long) |
-
-- **Target.** Next Thursday's settlement minus this Thursday's, on a **roll-adjusted** front-month
-  series (official EIA futures, to Apr 2024) or on WTI spot (to the latest data).
-- **Execution.** Settlement-to-settlement entry and exit is achievable with NYMEX **Trade-at-Settlement**
-  orders, so this PnL is much closer to executable than the power proxy.
-- **Costs.** Default $0.03/bbl round trip; PnL is per 1,000-bbl contract.
-
-### Briefs
-
-Both briefs are deterministic and rule-based. Each uses only what was public when it would have
-been written, and a unit test enforces this.
-
-### Illustrative results on the synthetic samples
-
-| Market | Vote | Hit rate when active |
-|---|---|---|
-| Power (DE_LU) | Residual-demand change | ~98% |
-| Power | Lagged load / renewable surprise | ~48% / ~51% |
-| Crude | Curve (carry) | ~54% |
-| Crude | Cushing tightness | ~55% |
-| Crude | Inventory surprise / positioning | ~48% / ~49% |
-| Crude | Combined weekly score | ~56% on 262 trades, Sharpe-like ≈ 0.5 |
-
-These numbers show the method, not real-market evidence. Each generator documents the
-relationships it builds in:
-- In power, day-ahead prices follow forecast residual demand. This is real, but the market knows the
-  forecast too, so beating yesterday's price is not beating the market.
-- In crude, the curve earns roll yield, while weekly inventory surprises are priced instantly and so
-  carry no information for the following week.
-
-The two coin-flip results are useful negative findings, and the dashboard shows them instead of
-hiding them.
-
-## 11. Limitations
-
-- **Proxy PnL (power).** Yesterday's price is not a tradeable reference.
-- **No analyst consensus (crude).** "Surprises" are measured against seasonal norms, because
-  consensus surveys are not free.
-- **No official futures curve after April 2024.** The live curve comes from an unofficial source.
-- **Missing drivers.**
-  - Power: TTF gas, EUA carbon and REMIT outage data.
-  - Crude: OPEC+ policy, refinery outages and product cracks.
-- **Execution not modelled.** No market impact, position limits, margin or intraday re-trading.
-- **Short or synthetic samples.** Treat every metric as descriptive, not statistically proven.
-
-## 12. Future improvements
-
-- **New commodities:** natural gas (Henry Hub storage, EU AGSI+ storage) and refined products
-  (crack spreads, using EIA product prices and stocks).
-- **Power:** target the day-ahead vs intraday/imbalance spread, where forecast errors carry value.
-- **Statistics:** walk-forward evaluation with bootstrap confidence intervals.
-- **Data:** a paid futures feed (e.g. Databento) for an official current curve and full contract
-  histories; weather-forecast ingestion (Open-Meteo); hydro and reservoir data.
-
-## 13. CV bullets
-
-**European Power & Crude Oil Trading Dashboard**
-
-- Built a Python/Streamlit dashboard tracking European power prices, load, renewable generation and residual demand across selected markets
-- Analysed price spikes, volatility and forecast errors to identify short-term supply-demand imbalances and market drivers
-- Developed transparent trading-style signals and daily market briefs linking fundamentals, weather-driven generation and price behaviour
-- Extended the platform to crude oil: EIA inventories vs 5-year seasonal norms, Cushing, futures curve (theory of storage) and CFTC positioning, with a release-calendar-aware weekly signal and roll-adjusted backtest
-- Automated a daily data pipeline (GitHub Actions → validated CSV store → Streamlit Cloud) integrating ENTSO-E, EIA and CFTC APIs with incremental updates, failure isolation and data-freshness monitoring
-
----
-
-*Educational and research project. Nothing here is investment advice. Signals and backtests are illustrative and rely on simplified assumptions.*
+- [ ] Roll-adjusted continuous series for all commodities, not just WTI
+- [ ] European gas storage (GIE AGSI+) next to TTF
+- [ ] Weather: heating/cooling degree days vs gas and power
+- [ ] Day-ahead vs intraday/imbalance prices in power - that's where forecast misses actually make money
+- [ ] Coffee: Brazil frost-season risk vs the price

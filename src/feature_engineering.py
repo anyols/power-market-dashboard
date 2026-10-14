@@ -225,20 +225,6 @@ def daily_summary(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def correlation_frame(df: pd.DataFrame) -> pd.DataFrame:
-    cols = {
-        "price": "Price",
-        "residual_demand": "Residual demand",
-        "load_actual": "Load",
-        "wind_actual": "Wind",
-        "solar_actual": "Solar",
-        "load_error": "Load error",
-        "renewable_error": "RES error",
-        "residual_demand_error": "Resid. demand error",
-    }
-    return df[list(cols)].rename(columns=cols).corr()
-
-
 # ---------------------------------------------------------------------------
 # Cross-border flows
 # ---------------------------------------------------------------------------

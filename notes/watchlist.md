@@ -1,0 +1,2 @@
+- _Write your own notes here: this box shows whatever is in `notes/watchlist.md`._
+- _e.g. what you're watching into the next EIA report, a ratio that looks stretched, a weather story._

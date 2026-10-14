@@ -101,7 +101,7 @@ def empty_figure(message: str, height: int = 260) -> go.Figure:
 # ---------------------------------------------------------------------------
 def fundamentals_stack(view: pd.DataFrame, spike_mask: pd.Series | None = None) -> go.Figure:
     """Price and its fundamental drivers on aligned, separate panels."""
-    titles = ["Day-ahead price (€/MWh)", "Load (GW)", "Wind (GW)", "Solar (GW)", "Residual demand = load − wind − solar (GW)"]
+    titles = ["Day-ahead price (€/MWh)", "Load (GW)", "Wind (GW)", "Solar (GW)", "Residual load = load − wind − solar (GW)"]
     fig = make_subplots(rows=5, cols=1, shared_xaxes=True, vertical_spacing=0.035, subplot_titles=titles)
     x = view.index
     fig.add_trace(_line(x, view["price"], "Day-ahead price", C["price"], width=1.5, fmt=",.2f", unit=" €/MWh"), 1, 1)
@@ -225,24 +225,6 @@ def correlation_heatmap(corr: pd.DataFrame) -> go.Figure:
     return _style(fig, height=430, title="Correlation matrix (hourly)", hover="closest", legend=False)
 
 
-def rolling_correlation_chart(rc: pd.Series, window_label: str) -> go.Figure:
-    fig = go.Figure(_line(rc.index, rc, f"Rolling correlation ({window_label})", C["residual"], fmt=".2f"))
-    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
-    fig.update_yaxes(range=[-1, 1], title_text="Correlation")
-    return _style(fig, height=320, title=f"Rolling correlation: residual demand vs price ({window_label})", legend=False)
-
-
-def fit_residual_chart(view: pd.DataFrame, fitted: pd.Series) -> go.Figure:
-    resid = view["price"] - fitted
-    fig = go.Figure(go.Bar(x=view.index, y=resid, name="Price − fundamental fit",
-                           marker=dict(color=np.where(resid >= 0, C["spike"], C["price"])),
-                           hovertemplate="%{y:+,.1f} €/MWh vs fit<extra></extra>"))
-    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
-    fig.update_yaxes(title_text="€/MWh")
-    return _style(fig, height=300, title="What fundamentals do not explain: price minus quadratic residual-demand fit",
-                  legend=False)
-
-
 # ---------------------------------------------------------------------------
 # Forecast errors
 # ---------------------------------------------------------------------------
@@ -252,30 +234,6 @@ ERROR_SERIES = [
     ("solar_error", "Solar error", "solar"),
     ("residual_demand_error", "Residual-demand error", "residual"),
 ]
-
-
-def error_timeseries(view: pd.DataFrame) -> go.Figure:
-    fig = make_subplots(rows=4, cols=1, shared_xaxes=True, vertical_spacing=0.05,
-                        subplot_titles=[f"{label} (GW, actual − forecast)" for _, label, _ in ERROR_SERIES])
-    for i, (col, label, ckey) in enumerate(ERROR_SERIES, start=1):
-        fig.add_trace(_line(view.index, view[col] / GW, label, C[ckey], width=1.2, unit=" GW"), i, 1)
-        fig.add_hline(y=0, line=dict(color=C["axis"], width=1), row=i, col=1)
-    _style(fig, height=760, legend=False)
-    fig.update_annotations(font=dict(size=13), x=0, xanchor="left")
-    return fig
-
-
-def error_histograms(view: pd.DataFrame) -> go.Figure:
-    fig = make_subplots(rows=1, cols=4, subplot_titles=[label for _, label, _ in ERROR_SERIES], horizontal_spacing=0.06)
-    for i, (col, label, ckey) in enumerate(ERROR_SERIES, start=1):
-        fig.add_trace(go.Histogram(x=view[col] / GW, name=label, nbinsx=40, marker=dict(color=C[ckey], opacity=0.85),
-                                   hovertemplate=f"{label}: %{{x}} GW<br>Hours: %{{y}}<extra></extra>"), 1, i)
-        fig.add_vline(x=0, line=dict(color=C["axis"], width=1), row=1, col=i)
-        fig.update_xaxes(title_text="GW", row=1, col=i)
-    _style(fig, height=300, legend=False, hover="closest")
-    fig.update_annotations(font=dict(size=13))
-    fig.update_layout(bargap=0.05)
-    return fig
 
 
 def hour_weekday_heatmap(view: pd.DataFrame, col: str, title: str, scale: float = GW, unit: str = "GW",
@@ -296,16 +254,6 @@ def hour_weekday_heatmap(view: pd.DataFrame, col: str, title: str, scale: float 
     return _style(fig, height=520, title=title, hover="closest", legend=False)
 
 
-def zscore_chart(view: pd.DataFrame, col: str, label: str) -> go.Figure:
-    fig = go.Figure(_line(view.index, view[col], f"{label} z-score", C["residual"], width=1.2, fmt=".2f"))
-    for y in (-2, 2):
-        fig.add_hline(y=y, line=dict(color=C["muted"], width=1), annotation_text=f"{y:+d}σ",
-                      annotation_position="top left", annotation_font=dict(color=C["muted"], size=11))
-    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
-    fig.update_yaxes(title_text="σ vs trailing 30 days")
-    return _style(fig, height=320, title=f"{label}: z-score vs trailing 30-day distribution", legend=False)
-
-
 # ---------------------------------------------------------------------------
 # Spikes & volatility
 # ---------------------------------------------------------------------------
@@ -317,17 +265,6 @@ def spikes_by_hour(view: pd.DataFrame, spike_mask: pd.Series) -> go.Figure:
     fig.update_xaxes(title_text="Delivery hour (local)")
     fig.update_yaxes(title_text="Spike count")
     return _style(fig, height=320, title="When do spikes happen?", legend=False, hover="closest")
-
-
-def price_distribution(view: pd.DataFrame, level: float) -> go.Figure:
-    fig = go.Figure(go.Histogram(x=view["price"], nbinsx=60, marker=dict(color=C["price"], opacity=0.85),
-                                 name="Hourly prices", hovertemplate="%{x} €/MWh: %{y} hours<extra></extra>"))
-    fig.add_vline(x=level, line=dict(color=C["spike"], width=2), annotation_text=f"Spike threshold {level:,.0f}",
-                  annotation_position="top right", annotation_font=dict(color=C["ink2"]))
-    fig.add_vline(x=0, line=dict(color=C["axis"], width=1))
-    fig.update_xaxes(title_text="€/MWh")
-    fig.update_yaxes(title_text="Hours")
-    return _style(fig, height=320, title="Price distribution", legend=False, hover="closest")
 
 
 def regime_box(view: pd.DataFrame, groups: pd.Series, col: str, label: str, scale: float = GW, unit: str = "GW") -> go.Figure:
@@ -345,33 +282,9 @@ def regime_box(view: pd.DataFrame, groups: pd.Series, col: str, label: str, scal
     return _style(fig, height=340, title=label, legend=False, hover="closest")
 
 
-def spike_frequency_heatmap(view: pd.DataFrame, spike_mask: pd.Series) -> go.Figure:
-    d = view.assign(spike=spike_mask.astype(float))
-    return hour_weekday_heatmap(d, "spike", "Spike frequency by hour and weekday (share of hours)", scale=0.01,
-                                unit="%", diverging=False)
-
-
-def volatility_chart(view: pd.DataFrame) -> go.Figure:
-    fig = go.Figure()
-    fig.add_trace(_line(view.index, view["price_vol_24h"], "24h volatility", C["price"], width=1.2, unit=" €/MWh"))
-    fig.add_trace(_line(view.index, view["price_vol_7d"], "7-day volatility", C["residual"], unit=" €/MWh"))
-    fig.update_yaxes(title_text="Std of hourly price changes (€/MWh)")
-    return _style(fig, height=320, title="Rolling volatility (absolute €/MWh changes — prices can be negative)")
-
-
 # ---------------------------------------------------------------------------
 # Cross-border flows
 # ---------------------------------------------------------------------------
-def net_position_chart(net: pd.Series) -> go.Figure:
-    fig = go.Figure(go.Bar(x=net.index, y=net / GW, name="Net imports",
-                           marker=dict(color=np.where(net >= 0, C["price"], C["residual"]), line=dict(width=0)),
-                           hovertemplate="%{y:+,.2f} GW<extra></extra>"))
-    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
-    fig.update_yaxes(title_text="GW (+ import / − export)")
-    fig.update_layout(bargap=0)
-    return _style(fig, height=320, title="Net position across modelled borders (+ = net import)", legend=False)
-
-
 def border_flow_chart(net_by_border: pd.DataFrame, zone: str) -> go.Figure:
     palette = [C["price"], C["residual"], C["wind"], C["solar"], C["negative"], C["load"]]
     fig = go.Figure()
@@ -381,13 +294,6 @@ def border_flow_chart(net_by_border: pd.DataFrame, zone: str) -> go.Figure:
     fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
     fig.update_yaxes(title_text=f"Net flow into {zone} (GW)")
     return _style(fig, height=360, title="Net flow by border (+ = into the selected zone)")
-
-
-def spread_chart(spread: pd.Series, zone: str, nb: str) -> go.Figure:
-    fig = go.Figure(_line(spread.index, spread, f"{nb} − {zone}", C["price"], width=1.2, fmt="+,.2f", unit=" €/MWh"))
-    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
-    fig.update_yaxes(title_text="€/MWh")
-    return _style(fig, height=300, title=f"Day-ahead price spread: {nb} minus {zone}", legend=False)
 
 
 def flow_vs_spread(spread: pd.Series, flow: pd.Series, zone: str, nb: str, capacity: float | None) -> go.Figure:
@@ -410,40 +316,6 @@ def flow_vs_spread(spread: pd.Series, flow: pd.Series, zone: str, nb: str, capac
 # ---------------------------------------------------------------------------
 # Signals, backtest, risk
 # ---------------------------------------------------------------------------
-def signal_overview(signals: pd.DataFrame, horizon: str) -> go.Figure:
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.6, 0.4],
-                        subplot_titles=["Delivered day-ahead price (€/MWh)" if horizon == "hourly" else "Daily baseload (€/MWh)",
-                                        "Signal score (−3 bearish … +3 bullish)"])
-    x = signals.index
-    fig.add_trace(_line(x, signals["delivered_price"], "Price", C["price"], width=1.3, fmt=",.2f", unit=" €/MWh"), 1, 1)
-    score = signals["score"]
-    fig.add_trace(go.Bar(x=x, y=score, name="Score", marker=dict(color=np.where(score >= 0, C["spike"], C["price"]),
-                                                                  line=dict(width=0)),
-                         hovertemplate="Score %{y:+.0f}<extra></extra>"), 2, 1)
-    fig.add_hline(y=0, line=dict(color=C["axis"], width=1), row=2, col=1)
-    fig.update_yaxes(range=[-3.5, 3.5], dtick=1, row=2, col=1)
-    _style(fig, height=520, legend=False)
-    fig.update_annotations(font=dict(size=13), x=0, xanchor="left")
-    fig.update_layout(bargap=0)
-    return fig
-
-
-def target_by_score(signals: pd.DataFrame, unit: str = "€/MWh") -> go.Figure:
-    d = signals.dropna(subset=["score", "target"])
-    fig = go.Figure()
-    for sc in range(-4, 5):
-        vals = d.loc[d["score"] == sc, "target"]
-        if len(vals) < 3:
-            continue
-        color = C["spike"] if sc > 0 else (C["price"] if sc < 0 else C["muted"])
-        fig.add_trace(go.Box(y=vals, name=f"{sc:+d}", marker=dict(color=color), boxpoints=False, line=dict(width=1.5),
-                             hovertemplate=f"Score {sc:+d}<br>%{{y:+,.2f}} {unit}<extra></extra>"))
-    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
-    fig.update_xaxes(title_text="Signal score")
-    fig.update_yaxes(title_text=f"Realised price change vs reference ({unit})")
-    return _style(fig, height=380, title="Does the score line up with the realised move?", legend=False, hover="closest")
-
-
 def equity_curve(daily_pnl: pd.Series, compare: dict[str, pd.Series] | None = None, ccy: str = "€",
                  clip: str = "1 MW clip") -> go.Figure:
     cum = daily_pnl.cumsum()
@@ -461,53 +333,6 @@ def equity_curve(daily_pnl: pd.Series, compare: dict[str, pd.Series] | None = No
     _style(fig, height=480, legend=bool(compare))
     fig.update_annotations(font=dict(size=13), x=0, xanchor="left")
     return fig
-
-
-def daily_pnl_bars(daily_pnl: pd.Series, ccy: str = "€", title: str = "Daily PnL proxy") -> go.Figure:
-    fig = go.Figure(go.Bar(x=daily_pnl.index, y=daily_pnl, name=title,
-                           marker=dict(color=np.where(daily_pnl >= 0, C["gain"], C["loss"]), cornerradius=3),
-                           hovertemplate=f"%{{x|%Y-%m-%d}}: %{{y:+,.0f}} {ccy}<extra></extra>"))
-    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
-    fig.update_yaxes(title_text=ccy)
-    return _style(fig, height=320, title=title, legend=False, hover="closest")
-
-
-def confusion_heatmap(confusion: pd.DataFrame) -> go.Figure:
-    if confusion.empty:
-        return empty_figure("No trades")
-    z = confusion.to_numpy()
-    fig = go.Figure(go.Heatmap(z=z, x=confusion.columns, y=confusion.index, colorscale=_seq_scale(), showscale=False,
-                               text=z, texttemplate="%{text}", textfont=dict(size=14), xgap=3, ygap=3,
-                               hovertemplate="Predicted %{y}, actual %{x}: %{z}<extra></extra>"))
-    fig.update_yaxes(autorange="reversed", showgrid=False)
-    return _style(fig, height=300, title="Direction confusion matrix (counts)", hover="closest", legend=False)
-
-
-def exposure_chart(exposure: pd.DataFrame) -> go.Figure:
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=[f"{h:02d}" for h in exposure.index], y=exposure["Long"], name="Long",
-                         marker=dict(color=C["spike"], cornerradius=3), hovertemplate="Hour %{x}: %{y} long<extra></extra>"))
-    fig.add_trace(go.Bar(x=[f"{h:02d}" for h in exposure.index], y=-exposure["Short"], name="Short",
-                         marker=dict(color=C["price"], cornerradius=3),
-                         customdata=exposure["Short"], hovertemplate="Hour %{x}: %{customdata} short<extra></extra>"))
-    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
-    fig.update_layout(barmode="relative")
-    fig.update_xaxes(title_text="Delivery hour (local)")
-    fig.update_yaxes(title_text="Positions (long up / short down)")
-    return _style(fig, height=340, title="Exposure by delivery hour", hover="closest")
-
-
-def pnl_by_regime(ledger: pd.DataFrame) -> go.Figure:
-    if "vol_regime" not in ledger or ledger.empty:
-        return empty_figure("No regime information")
-    g = ledger.groupby("vol_regime")["pnl"].agg(["sum", "count"]).reindex(["low", "normal", "high"]).dropna()
-    fig = go.Figure(go.Bar(x=g.index.str.capitalize(), y=g["sum"], name="PnL",
-                           marker=dict(color=np.where(g["sum"] >= 0, C["gain"], C["loss"]), cornerradius=4),
-                           customdata=g["count"], hovertemplate="%{x} volatility: %{y:+,.0f} € over %{customdata} obs.<extra></extra>"))
-    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
-    fig.update_yaxes(title_text="€")
-    return _style(fig, height=300, title="PnL proxy by volatility regime (regime known at decision time)", legend=False,
-                  hover="closest")
 
 
 # ---------------------------------------------------------------------------
@@ -615,18 +440,166 @@ def positioning_chart(cot: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def weekly_signal_chart(signals: pd.DataFrame, price_label: str) -> go.Figure:
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.6, 0.4],
-                        subplot_titles=[price_label, "Weekly signal score (− bearish … + bullish)"])
-    fig.add_trace(_line(signals.index, signals["reference_price"], "Price", C["price"], width=1.3, fmt=",.2f",
-                        unit=" $/bbl"), 1, 1)
-    score = signals["score"]
-    fig.add_trace(go.Bar(x=signals.index, y=score, name="Score",
-                         marker=dict(color=np.where(score >= 0, C["spike"], C["price"]), line=dict(width=0)),
-                         hovertemplate="%{x|%Y-%m-%d}: score %{y:+.0f}<extra></extra>"), 2, 1)
-    fig.add_hline(y=0, line=dict(color=C["axis"], width=1), row=2, col=1)
-    fig.update_yaxes(range=[-4.5, 4.5], dtick=1, row=2, col=1)
-    _style(fig, height=500, legend=False)
-    fig.update_annotations(font=dict(size=13), x=0, xanchor="left")
-    fig.update_layout(bargap=0.1)
+# ---------------------------------------------------------------------------
+# Cross-market (board, ratios, stocks vs commodities, seasonality)
+# ---------------------------------------------------------------------------
+def _updown_scale() -> list:
+    return [[0, C["spike"]], [0.5, C["mid"]], [1, C["wind"]]]
+
+
+def returns_heatmap(perf: pd.DataFrame, cols: list[str]) -> go.Figure:
+    z = perf[cols].to_numpy(dtype=float) * 100
+    lim = max(5.0, float(np.nanpercentile(np.abs(z), 90))) if np.isfinite(z).any() else 5.0
+    text = [[f"{v:+.1f}%" if np.isfinite(v) else "" for v in row] for row in z]
+    fig = go.Figure(go.Heatmap(
+        z=z, x=cols, y=perf["name"], zmin=-lim, zmax=lim, colorscale=_updown_scale(),
+        text=text, texttemplate="%{text}", textfont=dict(size=11), xgap=2, ygap=2, showscale=False,
+        hovertemplate="%{y} %{x}: %{z:+.1f}%<extra></extra>",
+    ))
+    fig.update_yaxes(autorange="reversed", showgrid=False)
+    fig.update_xaxes(side="top", showgrid=False)
+    return _style(fig, height=max(320, 26 * len(perf) + 60), hover="closest", legend=False)
+
+
+def range_strip(perf: pd.DataFrame) -> go.Figure:
+    """Where each asset sits between its 52-week low (0) and high (100)."""
+    d = perf.dropna(subset=["range_pos"]).sort_values("range_pos")
+    fig = go.Figure()
+    for name in d["name"]:
+        fig.add_trace(go.Scatter(x=[0, 100], y=[name, name], mode="lines", line=dict(color=C["grid"], width=6),
+                                 hoverinfo="skip", showlegend=False))
+    fig.add_trace(go.Scatter(
+        x=d["range_pos"] * 100, y=d["name"], mode="markers", name="Now",
+        marker=dict(size=11, color=np.where(d["range_pos"] > 0.5, C["wind"], C["spike"])),
+        customdata=np.stack([d["52w_low"], d["52w_high"], d["last"]], axis=1),
+        hovertemplate="%{y}: %{x:.0f}% of the range<br>low %{customdata[0]:,.2f} · high %{customdata[1]:,.2f}"
+                      "<br>now %{customdata[2]:,.2f}<extra></extra>",
+    ))
+    fig.update_xaxes(range=[-3, 103], tickvals=[0, 50, 100], ticktext=["52w low", "middle", "52w high"])
+    return _style(fig, height=max(300, 24 * len(d) + 40), hover="closest", legend=False)
+
+
+def ratio_chart(s: pd.Series, title: str, unit: str, companion: pd.Series | None = None,
+                companion_label: str = "") -> go.Figure:
+    s = s.dropna()
+    rows = 2 if companion is not None else 1
+    head = title if unit in ("", "ratio") else f"{title} ({unit})"
+    fig = make_subplots(rows=rows, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        row_heights=[0.68, 0.32] if rows == 2 else [1.0],
+                        subplot_titles=[head, companion_label] if rows == 2 else None)
+    fig.add_trace(_line(s.index, s, title, C["price"], width=1.6, fmt=",.2f"), 1, 1)
+    for q, label in [(0.1, "10th pct"), (0.5, "median"), (0.9, "90th pct")]:
+        fig.add_hline(y=s.quantile(q), line=dict(color=C["muted"], width=1, dash="dot"), row=1, col=1,
+                      annotation_text=label, annotation_position="right", annotation_font=dict(size=10, color=C["muted"]))
+    fig.add_trace(go.Scatter(x=[s.index[-1]], y=[s.iloc[-1]], mode="markers", marker=dict(size=9, color=C["spike"]),
+                             hovertemplate="latest: %{y:,.2f}<extra></extra>", showlegend=False), 1, 1)
+    if companion is not None:
+        c = companion.dropna()
+        fig.add_trace(_line(c.index, c, companion_label, C["residual"], width=1.3, fmt=",.2f"), 2, 1)
+        fig.update_annotations(font=dict(size=13), x=0, xanchor="left", selector=dict(text=head))
+        fig.update_annotations(font=dict(size=13), x=0, xanchor="left", selector=dict(text=companion_label))
+    _style(fig, height=470 if rows == 2 else 380, legend=False)
+    fig.update_layout(margin=dict(r=70))
     return fig
+
+
+def indexed_performance(df: pd.DataFrame, labels: dict[str, str]) -> go.Figure:
+    d = df.dropna()
+    idx = 100 * d / d.iloc[0]
+    fig = go.Figure()
+    for col, color in zip(d.columns, [C["price"], C["residual"]]):
+        fig.add_trace(_line(idx.index, idx[col], labels[col], color, width=1.6, fmt=",.0f"))
+    fig.add_hline(y=100, line=dict(color=C["axis"], width=1))
+    fig.update_yaxes(title_text=f"{d.index[0]:%b %Y} = 100 (log scale)", type="log")
+    return _style(fig, height=360)
+
+
+def rolling_pair_chart(rb: pd.DataFrame, window_label: str) -> go.Figure:
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1,
+                        subplot_titles=[f"Correlation ({window_label} rolling, weekly returns)", "Beta"])
+    fig.add_trace(_line(rb.index, rb["corr"], "correlation", C["price"], width=1.5, fmt="+.2f"), 1, 1)
+    fig.add_trace(_line(rb.index, rb["beta"], "beta", C["residual"], width=1.5, fmt="+.2f"), 2, 1)
+    for r in (1, 2):
+        fig.add_hline(y=0, line=dict(color=C["axis"], width=1), row=r, col=1)
+    fig.update_yaxes(range=[-1, 1], row=1, col=1)
+    _style(fig, height=430, legend=False)
+    fig.update_annotations(font=dict(size=13), x=0, xanchor="left")
+    return fig
+
+
+def lead_lag_chart(ll: pd.Series, commodity: str, stock: str) -> go.Figure:
+    fig = go.Figure(go.Bar(
+        x=ll.index, y=ll.to_numpy(), marker=dict(color=np.where(ll.index == 0, C["muted"], C["price"]), cornerradius=3),
+        hovertemplate="lag %{x} wk: corr %{y:+.2f}<extra></extra>",
+    ))
+    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
+    fig.update_xaxes(title_text=f"← {stock} moves first   ·   weeks   ·   {commodity} moves first →", dtick=1)
+    fig.update_yaxes(title_text="correlation")
+    return _style(fig, height=300, hover="closest", legend=False)
+
+
+def weekly_scatter(rc: pd.Series, rs: pd.Series, xlab: str, ylab: str) -> go.Figure:
+    d = pd.concat({"c": rc, "s": rs}, axis=1).dropna()
+    fig = go.Figure(go.Scattergl(x=d["c"] * 100, y=d["s"] * 100, mode="markers",
+                                 marker=dict(color=C["price"], size=5, opacity=0.4),
+                                 customdata=d.index.strftime("%d %b %Y"),
+                                 hovertemplate="week to %{customdata}<br>" + xlab + " %{x:+.1f}%<br>" + ylab
+                                               + " %{y:+.1f}%<extra></extra>"))
+    if len(d) > 10:
+        b, a = np.polyfit(d["c"], d["s"], 1)
+        xs = np.linspace(d["c"].min(), d["c"].max(), 50)
+        fig.add_trace(go.Scatter(x=xs * 100, y=(a + b * xs) * 100, mode="lines", line=dict(color=C["ink2"], width=1.5),
+                                 hoverinfo="skip"))
+    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
+    fig.add_vline(x=0, line=dict(color=C["axis"], width=1))
+    fig.update_xaxes(title_text=f"{xlab}, weekly %")
+    fig.update_yaxes(title_text=f"{ylab}, weekly %")
+    return _style(fig, height=360, hover="closest", legend=False)
+
+
+MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def seasonality_heatmap(table: pd.DataFrame) -> go.Figure:
+    z = table.to_numpy(dtype=float) * 100
+    lim = max(5.0, float(np.nanpercentile(np.abs(z), 90))) if np.isfinite(z).any() else 5.0
+    text = [[f"{v:+.0f}" if np.isfinite(v) else "" for v in row] for row in z]
+    fig = go.Figure(go.Heatmap(
+        z=z, x=MONTHS, y=[str(y) for y in table.index], zmin=-lim, zmax=lim, colorscale=_updown_scale(),
+        text=text, texttemplate="%{text}", textfont=dict(size=10), xgap=2, ygap=2, showscale=False,
+        hovertemplate="%{x} %{y}: %{z:+.1f}%<extra></extra>",
+    ))
+    fig.update_yaxes(autorange="reversed", showgrid=False, type="category")
+    fig.update_xaxes(side="top", showgrid=False)
+    return _style(fig, height=max(320, 22 * len(table) + 60), hover="closest", legend=False)
+
+
+def month_bars(stats: pd.DataFrame) -> go.Figure:
+    m = stats["mean"] * 100
+    fig = go.Figure(go.Bar(
+        x=MONTHS, y=m.to_numpy(), marker=dict(color=np.where(m >= 0, C["wind"], C["spike"]), cornerradius=3),
+        customdata=np.stack([stats["median"] * 100, stats["share_up"] * 100, stats["years"]], axis=1),
+        hovertemplate="%{x}: mean %{y:+.1f}% · median %{customdata[0]:+.1f}%<br>up in %{customdata[1]:.0f}% of "
+                      "%{customdata[2]} years<extra></extra>",
+    ))
+    fig.add_hline(y=0, line=dict(color=C["axis"], width=1))
+    fig.update_yaxes(title_text="average monthly return, %")
+    return _style(fig, height=300, hover="closest", legend=False)
+
+
+def seasonal_path_chart(paths: pd.DataFrame, current_year: int) -> go.Figure:
+    past = paths.drop(columns=[current_year], errors="ignore")
+    fig = go.Figure()
+    for y in past.columns:
+        fig.add_trace(go.Scatter(x=past.index, y=past[y], mode="lines", line=dict(color=C["grid"], width=1),
+                                 name=str(y), hovertemplate=f"{y}: %{{y:.0f}}<extra></extra>", showlegend=False))
+    fig.add_trace(_line(past.index, past.mean(axis=1), f"average {past.columns.min()}–{past.columns.max()}",
+                        C["muted"], width=2.2, dash="dot", fmt=".1f"))
+    if current_year in paths:
+        cur = paths[current_year].dropna()
+        fig.add_trace(_line(cur.index, cur, str(current_year), C["price"], width=2.6, fmt=".1f"))
+    fig.add_hline(y=100, line=dict(color=C["axis"], width=1))
+    ticks = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335]
+    fig.update_xaxes(tickvals=ticks, ticktext=MONTHS, range=[1, 366])
+    fig.update_yaxes(title_text="first close of the year = 100")
+    return _style(fig, height=380, hover="x unified")

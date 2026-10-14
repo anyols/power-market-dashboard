@@ -456,62 +456,6 @@ def _watch_section(day: pd.DataFrame, s: dict, date: pd.Timestamp) -> str:
 # ---------------------------------------------------------------------------
 # Period-level notes (Market Overview / Spike pages)
 # ---------------------------------------------------------------------------
-@dataclass
-class RegimeNote:
-    title: str
-    state: str  # short label, e.g. "Tight"
-    tone: str  # "bullish" | "bearish" | "neutral" | "risk"
-    text: str
-
-
-def market_regime_notes(view: pd.DataFrame) -> list[RegimeNote]:
-    """Interpretation boxes for the selected window (last 7 days vs whole window)."""
-    notes = []
-    last7 = view[view["date"] > view["date"].max() - pd.Timedelta(days=7)]
-
-    rd_z = last7["residual_demand_z"].mean()
-    if pd.notna(rd_z) and rd_z > 0.4:
-        notes.append(RegimeNote("Residual demand", "Tight", "bullish",
-                                f"Residual demand over the last 7 days sits {rd_z:.1f}σ above its trailing 30-day mean. "
-                                "A tighter system needs more expensive dispatchable plants: bullish pressure."))
-    elif pd.notna(rd_z) and rd_z < -0.4:
-        notes.append(RegimeNote("Residual demand", "Loose", "bearish",
-                                f"Residual demand over the last 7 days sits {abs(rd_z):.1f}σ below its trailing 30-day mean. "
-                                "A looser system pushes cheaper units onto the margin: bearish pressure."))
-    else:
-        notes.append(RegimeNote("Residual demand", "Balanced", "neutral",
-                                "Residual demand is close to its trailing 30-day mean; no strong fundamental bias."))
-
-    res_mae = last7["renewable_error"].abs().mean()
-    res_mae_all = view["renewable_error"].abs().mean()
-    ratio = safe_div(res_mae, res_mae_all)
-    if pd.notna(ratio) and ratio > 1.2:
-        notes.append(RegimeNote("Renewable forecast error", "Large", "risk",
-                                f"Mean absolute wind+solar forecast error over the last 7 days is {fmt_gw(res_mae)}, "
-                                f"{ratio:.1f}x the window average. Large errors are a key intraday/imbalance driver."))
-    else:
-        notes.append(RegimeNote("Renewable forecast error", "Normal", "neutral",
-                                f"Mean absolute wind+solar forecast error over the last 7 days is {fmt_gw(res_mae)}, "
-                                "in line with the window average."))
-
-    regime = view["vol_regime"].iloc[-1] if "vol_regime" in view and len(view) else "n/a"
-    vol_txt = {
-        "high": ("High", "risk", "Hour-to-hour price volatility is in the top third of its history: more opportunity, but wider risk limits and worse fills."),
-        "low": ("Low", "neutral", "Volatility is in the bottom third of its history: tighter ranges and less to trade around."),
-        "normal": ("Normal", "neutral", "Volatility is within its typical range."),
-    }.get(regime, ("n/a", "neutral", "Not enough history to classify volatility yet."))
-    notes.append(RegimeNote("Volatility", *vol_txt))
-
-    neg_share = view["is_negative"].mean()
-    if neg_share > 0.02:
-        notes.append(RegimeNote("Negative prices", f"{fmt_pct(neg_share, 1)} of hours", "bearish",
-                                "Frequent negative prices signal renewable oversupply relative to flexible demand and export capacity."))
-    else:
-        notes.append(RegimeNote("Negative prices", "Rare", "neutral",
-                                "Negative prices were rare in this window; inflexibility is not a dominant theme."))
-    return notes
-
-
 def explain_spikes(view: pd.DataFrame, spike_mask: pd.Series) -> str:
     """Natural-language comparison of spike vs normal hours."""
     spike_mask = spike_mask.reindex(view.index).fillna(False).astype(bool)
