@@ -1,16 +1,16 @@
 {
   "crude/cot_wti": {
-    "last_attempt_utc": "2026-11-20T13:58:32Z",
-    "last_success_utc": "2026-11-20T13:58:32Z",
-    "latest_observation": "2026-11-10",
+    "last_attempt_utc": "2026-11-21T13:26:11Z",
+    "last_success_utc": "2026-11-21T13:26:11Z",
+    "latest_observation": "2026-11-17",
     "message": "",
     "ok": true,
-    "rows": 619,
+    "rows": 620,
     "source": "CFTC Disaggregated COT"
   },
   "crude/eia_daily": {
-    "last_attempt_utc": "2026-11-20T13:58:24Z",
-    "last_success_utc": "2026-11-20T13:58:24Z",
+    "last_attempt_utc": "2026-11-21T13:26:03Z",
+    "last_success_utc": "2026-11-21T13:26:03Z",
     "latest_observation": "2026-11-17",
     "message": "",
     "ok": true,
@@ -18,8 +18,8 @@
     "source": "EIA API v2"
   },
   "crude/eia_weekly": {
-    "last_attempt_utc": "2026-11-20T13:58:32Z",
-    "last_success_utc": "2026-11-20T13:58:32Z",
+    "last_attempt_utc": "2026-11-21T13:26:10Z",
+    "last_success_utc": "2026-11-21T13:26:10Z",
     "latest_observation": "2026-11-13",
     "message": "",
     "ok": true,
