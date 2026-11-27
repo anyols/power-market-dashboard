@@ -1,7 +1,7 @@
 {
   "crude/cot_wti": {
-    "last_attempt_utc": "2026-11-26T15:12:25Z",
-    "last_success_utc": "2026-11-26T15:12:25Z",
+    "last_attempt_utc": "2026-11-27T15:12:59Z",
+    "last_success_utc": "2026-11-27T15:12:59Z",
     "latest_observation": "2026-11-17",
     "message": "",
     "ok": true,
@@ -9,20 +9,20 @@
     "source": "CFTC Disaggregated COT"
   },
   "crude/eia_daily": {
-    "last_attempt_utc": "2026-11-26T15:08:56Z",
+    "last_attempt_utc": "2026-11-27T15:05:52Z",
     "last_success_utc": "2026-11-26T15:08:56Z",
     "latest_observation": "2026-11-17",
-    "message": "",
-    "ok": true,
+    "message": "wti_spot: EIA request for PET.RWTC.D failed after retries: HTTPSConnectionPool(host='api.eia.gov', port=443): Read timed out. (read timeout=60)",
+    "ok": false,
     "rows": 4326,
     "source": "EIA API v2"
   },
   "crude/eia_weekly": {
-    "last_attempt_utc": "2026-11-26T15:12:18Z",
+    "last_attempt_utc": "2026-11-27T15:12:53Z",
     "last_success_utc": "2026-11-26T15:12:18Z",
     "latest_observation": "2026-11-13",
-    "message": "",
-    "ok": true,
+    "message": "crude_net_imports: EIA request for PET.WCRNTUS2.W failed after retries: HTTPSConnectionPool(host='api.eia.gov', port=443): Read timed out. (read timeout=60)",
+    "ok": false,
     "rows": 881,
     "source": "EIA API v2"
   }
